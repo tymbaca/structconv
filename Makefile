@@ -1,3 +1,3 @@
 run:
-	rm output.go
+	# rm output.go
 	go run main.go

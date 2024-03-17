@@ -1,9 +1,12 @@
 package parse
 
 import (
+	"errors"
 	"go/ast"
 	"go/parser"
 	"go/token"
+	"log"
+	"strings"
 )
 
 type StructInfo struct {
@@ -32,10 +35,10 @@ func Parse(fileName string) []StructInfo {
 		specs = append(specs, curSpecs...)
 	}
 
-	return makeStructInfos(specs)
+	return makeStructInfos(specs...)
 }
 
-func makeStructInfos(specs []*ast.TypeSpec) []StructInfo {
+func makeStructInfos(specs ...*ast.TypeSpec) []StructInfo {
 	var infos []StructInfo
 	for _, t := range specs {
 		info := StructInfo{}
@@ -45,7 +48,7 @@ func makeStructInfos(specs []*ast.TypeSpec) []StructInfo {
 
 		s, ok := t.Type.(*ast.StructType)
 		if !ok {
-			panic("got not struct in makeStructInfos")
+			continue
 		}
 		info.StructType = s
 
@@ -61,6 +64,66 @@ type (
 		//
 	}
 )
+
+func ParseFile(path string) (*ast.File, error) {
+	fset := token.NewFileSet()
+	node, err := parser.ParseFile(fset, path, nil, parser.ParseComments)
+	if err != nil {
+		return nil, err
+	}
+
+	return node, nil
+}
+
+func FindDeclByComment(node *ast.File, target string) (*ast.FuncDecl, bool) {
+	for _, d := range node.Decls {
+		fd, ok := d.(*ast.FuncDecl)
+		if !ok {
+			continue
+		}
+
+		if DocContains(fd.Doc, target) {
+			return fd, true
+		}
+	}
+
+	return nil, false
+}
+
+func DocContains(doc *ast.CommentGroup, target string) bool {
+	for _, c := range doc.List {
+		if strings.Contains(c.Text, target) {
+			return true
+		}
+	}
+
+	return false
+}
+
+// WARN: does't support non-struct types
+func GitParamsAndResults(fd *ast.FuncDecl) (StructInfo, StructInfo, error) {
+	if len(fd.Type.Params.List) != 1 || len(fd.Type.Results.List) != 1 {
+		return StructInfo{}, StructInfo{}, errors.New("param or result fields are no count 1")
+	}
+
+	paramField := fd.Type.Params.List[0]
+	// resultField := fd.Type.Results.List[0]
+
+	paramTypeIdent, ok := paramField.Type.(*ast.Ident)
+	if !ok {
+		panic("can't convert param field to ident")
+	}
+
+	log.Println(paramTypeIdent.Name)
+
+	// _, ok := paramField.Type.(*ast.StructType)
+	// if !ok {
+	// 	panic("can't convert param field to struct type")
+	// }
+	// ast.G
+
+	return StructInfo{}, StructInfo{}, nil
+}
 
 func getStructTypeSpecFromDecl(d ast.Decl) ([]*ast.TypeSpec, bool) {
 	g, ok := d.(*ast.GenDecl)

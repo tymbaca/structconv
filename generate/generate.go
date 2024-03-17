@@ -43,6 +43,41 @@ func Generate(info GenInfo, outputPath string) {
 	printer.Fprint(outFile, fset, node)
 }
 
+func GenerateInPlace(targetPath string) {
+	genInfo, file := GenInfoAndNodeFromFile(targetPath)
+	_, _ = genInfo, file
+
+	// converterFuncNode := generateConvertor(info)
+
+	// node.Decls = append(node.Decls, converterFuncNode)
+
+	// printer.Fprint(outFile, fset, node)
+}
+
+func GenInfoAndNodeFromFile(path string) (GenInfo, *ast.File) {
+	node, err := parse.ParseFile(path)
+	if err != nil {
+		panic(err)
+	}
+
+	fd, ok := parse.FindDeclByComment(node, "structconv")
+	if !ok {
+		panic("can'd find 'structconv' func decl")
+	}
+
+	src, dst, err := parse.GitParamsAndResults(fd)
+	if err != nil {
+		panic(err)
+	}
+
+	info := GenInfo{
+		Src: src,
+		Dst: dst,
+	}
+
+	return info, node
+}
+
 func generateConvertor(info GenInfo) *ast.FuncDecl {
 	fd := &ast.FuncDecl{
 		Name: ast.NewIdent(fmt.Sprintf("convert%sTo%s", info.Src.Name, info.Dst.Name)),

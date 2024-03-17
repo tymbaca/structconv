@@ -13,3 +13,6 @@ type Dst struct {
 	Years int
 	Who   string
 }
+
+// structconv
+func convertSrcToDst(src Src) Dst
